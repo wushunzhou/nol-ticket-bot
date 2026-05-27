@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nol-ticket-bot"
+version = "0.1.0"
+description = "NOL World 自动抢票工具（CTF 授权版）"
+requires-python = ">=3.10"
+dependencies = [
+    "DrissionPage>=4.1.0",
+    "requests>=2.31.0",
+    "click>=8.1",
+    "python-dotenv>=1.0",
+]
+
+[project.scripts]
+nol-bot = "nol_ticket_bot.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/nol_ticket_bot"]
