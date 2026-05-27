@@ -20,6 +20,8 @@ from .browser  import create_browser
 from .monitor  import fetch_sales_info, poll_until_open
 from .purchase import run as purchase_run
 
+log = logging.getLogger(__name__)
+
 
 # ── 日志格式 ──────────────────────────────────────
 
@@ -132,7 +134,6 @@ def _run_purchase() -> None:
 
 
 def _do_purchase(page) -> None:
-    log = logging.getLogger(__name__)
     success = purchase_run(page)
     if success:
         click.secho("\n✅ 购票流程完成！", fg="green", bold=True)

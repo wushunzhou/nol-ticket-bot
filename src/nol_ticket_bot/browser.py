@@ -63,14 +63,19 @@ def cdp_eval(page: ChromiumPage, js: str) -> Any:
     """
     通过 CDP Runtime.evaluate 执行 JS，返回结果值。
     用于直接调用页面内部函数——完全绕过 isTrusted 事件检测。
+    连接断开或页面 crash 时返回 None，不向上抛出。
     """
-    result = page.run_cdp(
-        "Runtime.evaluate",
-        expression=js,
-        returnByValue=True,
-        awaitPromise=True,
-    )
-    return result.get("result", {}).get("value")
+    try:
+        result = page.run_cdp(
+            "Runtime.evaluate",
+            expression=js,
+            returnByValue=True,
+            awaitPromise=True,
+        )
+        return result.get("result", {}).get("value")
+    except Exception as e:
+        log.debug("CDP eval 失败: %s", e)
+        return None
 
 
 def wait_for_element(page: ChromiumPage, selector: str, timeout: int = config.PAGE_WAIT_TIMEOUT):

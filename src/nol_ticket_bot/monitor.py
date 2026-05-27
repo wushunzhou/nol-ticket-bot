@@ -4,8 +4,11 @@ monitor.py — salesinfo 轮询
 """
 import logging
 import time
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from typing import Callable
+
+# NOL/Interpark 服务时间均为 KST (UTC+9)
+KST = timezone(timedelta(hours=9))
 
 import requests
 
@@ -60,8 +63,9 @@ def poll_until_open(on_open: Callable[[dict], None] | None = None) -> dict:
             # 根据剩余时间动态调整轮询间隔
             if open_time:
                 try:
-                    ot = datetime.strptime(open_time, "%Y-%m-%d %H:%M:%S")
-                    secs_left = (ot - datetime.now()).total_seconds()
+                    # bookingOpenTime 为 KST，用 aware datetime 比较避免时区偏差
+                    ot = datetime.strptime(open_time, "%Y-%m-%d %H:%M:%S").replace(tzinfo=KST)
+                    secs_left = (ot - datetime.now(KST)).total_seconds()
                     if secs_left <= 5:
                         interval = 0.3
                     elif secs_left <= 30:

@@ -20,6 +20,7 @@ purchase.py — NOL World 完整购票流程（基于真实逆向测试 2026-05-
   - Interpark waiting URL: ent-waiting-api.interpark.com
   - Global URL: ticket.globalinterpark.com
 """
+import json
 import logging
 import time
 
@@ -187,8 +188,8 @@ def wait_for_token_verify(page: ChromiumPage) -> bool:
                 if "처음부터 다시" in text:
                     log.error("❌ Interpark 要求重新开始")
                     return False
-        except Exception:
-            pass
+        except Exception as e:
+            log.debug("body 文字检测失败: %s", e)
 
         time.sleep(2)
 
@@ -288,10 +289,11 @@ def select_seat(page: ChromiumPage) -> bool:
         count = info["count"]
         log.info("找到 %d 个 %s 区座位（%s）", count, grade, sel)
 
+        sel_json = json.dumps(sel)  # 防止选择器含引号导致 JS 语法错误
         for i in range(min(config.MAX_TICKETS - selected, count)):
             cdp_eval(page, f"""
 (function() {{
-    const els = document.querySelectorAll('{sel}');
+    const els = document.querySelectorAll({sel_json});
     if (els[{i}]) {{ els[{i}].click(); return true; }}
     return false;
 }})()
@@ -313,7 +315,7 @@ def select_seat(page: ChromiumPage) -> bool:
 # ──────────────────────────────────────────────────
 
 def confirm_order(page: ChromiumPage) -> bool:
-    confirm_texts = ["확인", "결제하기", "Confirm", "Next", "확인", "立即付款", "다음", "购买"]
+    confirm_texts = ["결제하기", "확인", "다음", "Confirm", "Next", "立即付款", "购买"]
     for text in confirm_texts:
         btn = page.ele(f"text:{text}", timeout=2)
         if btn:
@@ -350,10 +352,15 @@ def run(page: ChromiumPage) -> bool:
         → tokenVerify (ent-bridge.interpark.com, POST, 503时重试)
         → Interpark 队列/选座/订单
     """
-    # Step 1：检查登录态
+    # Step 1：检查登录态（通过 /api/users/enter 401 判断，或 nav 中的用户头像）
     page.get(config.BASE_URL)
     time.sleep(1.5)
-    if not (page.ele("text:账号", timeout=3) or page.ele("text:我的", timeout=1)):
+    # 优先检查 nav 中带 href 的用户相关链接（登录后才有）
+    logged_in = (
+        page.ele("css:a[href*='/mypage'],a[href*='/profile'],a[href*='/account']", timeout=3)
+        or page.ele("css:[data-testid='user-avatar'],[data-testid='user-menu']", timeout=1)
+    )
+    if not logged_in:
         log.info("未检测到登录态，启动登录流程")
         if not login(page):
             return False
@@ -390,7 +397,8 @@ def run(page: ChromiumPage) -> bool:
 
     # Step 6：等待队列通过
     if not wait_for_queue(page):
-        log.warning("队列等待超时，继续尝试选座")
+        log.error("队列等待超时，中止流程")
+        return False
 
     # Step 7：选座
     if not select_seat(page):

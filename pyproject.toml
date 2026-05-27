@@ -17,5 +17,8 @@ dependencies = [
 [project.scripts]
 nol-bot = "nol_ticket_bot.cli:main"
 
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "responses>=0.25"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/nol_ticket_bot"]
